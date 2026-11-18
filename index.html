@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إنقاذ المدينة من انقطاع الكهرباء</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif;
+    background: #0a0e27; color: #fff; user-select: none;
+  }
+  /* ===== Sky & City Background ===== */
+  #sky {
+    position: fixed; inset: 0; z-index: 0;
+    background: linear-gradient(180deg, #0a0e27 0%, #1a1f4e 50%, #2d3561 100%);
+    transition: background 1.5s ease;
+  }
+  #sky.lit { background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 40%, #60a5fa 70%, #93c5fd 100%); }
+  .stars { position: absolute; inset: 0; }
+  .star {
+    position: absolute; background: #fff; border-radius: 50%;
+    animation: twinkle 3s infinite ease-in-out;
+  }
+  @keyframes twinkle { 0%,100%{opacity:0.2;transform:scale(1);} 50%{opacity:1;transform:scale(1.3);} }
+  .moon {
+    position: absolute; top: 8%; left: 12%; width: 70px; height: 70px;
+    background: radial-gradient(circle at 35% 35%, #fff8e1, #ffeb9c 60%, #fbc02d);
+    border-radius: 50%; box-shadow: 0 0 40px rgba(255,235,156,0.6);
+    transition: opacity 1.5s ease;
+  }
+  #sky.lit .moon { opacity: 0; }
+  #city {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 45%; z-index: 1;
+    display: flex; align-items: flex-end; justify-content: center; gap: 4px;
+    padding: 0 10px;
+  }
+  .building {
+    flex: 1; max-width: 60px; background: #1a1a2e; position: relative;
+    border-top: 3px solid #16213e;
+    transition: background 0.8s ease, box-shadow 0.8s ease;
+  }
+  .building::before {
+    content: ''; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    width: 14px; height: 8px; background: #444; border-radius: 3px 3px 0 0;
+  }
+  .building::after {
+    content: ''; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    width: 2px; height: 4px; background: #666;
+  }
+  .window {
+    position: absolute; background: #0d1117; border-radius: 2px;
+    transition: background 0.6s ease, box-shadow 0.6s ease;
+  }
+  .window.on {
+    background: #ffd54f;
+    box-shadow: 0 0 8px #ffd54f, 0 0 16px rgba(255,213,79,0.5);
+  }
+  /* ===== Screens ===== */
+  .screen {
+    position: fixed; inset: 0; z-index: 10;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    padding: 20px; overflow-y: auto;
+  }
+  .screen.active { display: flex; animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:scale(0.98);} to{opacity:1;transform:scale(1);} }
+  .card {
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(99, 179, 237, 0.4);
+    border-radius: 24px; padding: 28px; max-width: 760px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+    margin: auto;
+  }
+  h1.title {
+    font-size: clamp(28px, 5vw, 48px); text-align: center; margin-bottom: 12px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b, #ef4444);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 30px rgba(251,191,36,0.3);
+  }
+  h2.level-title {
+    font-size: clamp(22px, 4vw, 32px); text-align: center; margin-bottom: 8px;
+    color: #93c5fd;
+  }
+  .subtitle { text-align: center; color: #cbd5e1; margin-bottom: 18px; font-size: 16px; line-height: 1.7; }
+  .btn {
+    display: inline-block; padding: 14px 36px; margin: 8px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: #fff; border: none; border-radius: 50px; cursor: pointer;
+    font-size: 18px; font-weight: bold; font-family: inherit;
+    box-shadow: 0 6px 20px rgba(59,130,246,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(59,130,246,0.55); }
+  .btn:active { transform: translateY(0); }
+  .btn.success { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 6px 20px rgba(16,185,129,0.4); }
+  .btn.danger { background: linear-gradient(135deg, #ef4444, #b91c1c); box-shadow: 0 6px 20px rgba(239,68,68,0.4); }
+  .btn.warn { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 6px 20px rgba(245,158,11,0.4); }
+  .btn.ghost { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); box-shadow: none; }
+  /* ===== Progress Bar ===== */
+  #progress {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 20;
+    display: none; align-items: center; gap: 6px; background: rgba(0,0,0,0.5);
+    padding: 8px 16px; border-radius: 50px; backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #progress.show { display: flex; }
+  .pdot { width: 14px; height: 14px; border-radius: 50%; background: #334155; transition: all 0.4s; }
+  .pdot.done { background: #10b981; box-shadow: 0 0 12px #10b981; }
+  .pdot.current { background: #fbbf24; box-shadow: 0 0 12px #fbbf24; transform: scale(1.3); }
+  /* ===== Level 1: Wire Grid ===== */
+  #wireGrid {
+    display: grid; gap: 0; margin: 16px auto; width: fit-content;
+    background: #0f172a; padding: 8px; border-radius: 12px;
+    border: 2px solid #334155;
+  }
+  .cell {
+    width: 64px; height: 64px; position: relative; cursor: pointer;
+    background: #1e293b; border: 1px solid #334155;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .cell:hover { background: #334155; }
+  .cell svg { width: 100%; height: 100%; }
+  .cell.fixed { cursor: default; background: #0f172a; }
+  .cell.fixed:hover { background: #0f172a; }
+  .cell.connected .wire-path { stroke: #fbbf24; filter: drop-shadow(0 0 4px #fbbf24); }
+  .wire-path { stroke: #64748b; stroke-width: 8; fill: none; transition: stroke 0.3s, filter 0.3s; }
+  .cell.battery, .cell.bulb { background: #0f172a; }
+  /* ===== Level 2: Batteries ===== */
+  #batteryStage {
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+    margin: 20px 0; flex-wrap: wrap;
+  }
+  .battery-choice {
+    background: linear-gradient(180deg, #fef3c7, #fde68a);
+    border: 3px solid #92400e; border-radius: 12px;
+    padding: 14px 10px; cursor: pointer; text-align: center;
+    transition: transform 0.2s; min-width: 80px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .battery-choice:hover { transform: translateY(-4px); }
+  .battery-choice .btop { background: #92400e; height: 6px; width: 30px; margin: 0 auto 8px; border-radius: 2px; }
+  .battery-choice .bbody { background: linear-gradient(180deg,#fbbf24,#d97706); border-radius: 6px; padding: 8px; color:#000; font-weight:bold; }
+  .battery-choice .bvolt { font-size: 18px; }
+  .battery-choice .blabel { font-size: 11px; margin-top: 4px; }
+  #targetBulb { font-size: 80px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); }
+  #targetBulb.lit { filter: drop-shadow(0 0 20px #fbbf24) drop-shadow(0 0 40px #f59e0b); }
+  .volt-need { background: rgba(251,191,36,0.15); border: 1px solid #fbbf24; padding: 8px 20px; border-radius: 50px; margin: 10px 0; display:inline-block; }
+  /* ===== Level 3: Open/Closed ===== */
+  .circuit-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 16px 0; }
+  .circuit-card {
+    background: #0f172a; border: 2px solid #334155; border-radius: 12px;
+    padding: 14px; width: 220px; text-align: center;
+  }
+  .circuit-card svg { width: 100%; height: 110px; }
+  .circuit-card .ctitle { margin-top: 8px; font-size: 14px; color: #cbd5e1; }
+  .circuit-card .cbtns { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+  .mini-btn { padding: 6px 14px; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: bold; }
+  .mini-btn.open-btn { background: #ef4444; color: #fff; }
+  .mini-btn.closed-btn { background: #10b981; color: #fff; }
+  .mini-btn:disabled { opacity: 0.4; cursor: default; }
+  .mini-btn.correct { box-shadow: 0 0 0 3px #fbbf24; }
+  .mini-btn.wrong { animation: shake 0.4s; }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }
+  /* ===== Level 4: Parallel Bulbs ===== */
+  #parallelStage { margin: 16px 0; }
+  .bulb-slot {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 10px; cursor: pointer; border-radius: 12px;
+    border: 2px dashed #475569; transition: all 0.3s; margin: 4px;
+  }
+  .bulb-slot:hover { border-color: #93c5fd; background: rgba(147,197,253,0.08); }
+  .bulb-slot.connected { border-style: solid; border-color: #10b981; background: rgba(16,185,129,0.08); }
+  .bulb-emoji { font-size: 48px; transition: filter 0.5s; }
+  .bulb-slot.connected .bulb-emoji { filter: drop-shadow(0 0 12px #fbbf24) drop-shadow(0 0 24px #f59e0b); }
+  .bulb-label { font-size: 12px; color: #cbd5e1; }
+  /* ===== Level 5: Ohm's Law ===== */
+  .ohm-question {
+    background: rgba(15,23,42,0.6); border: 1px solid #334155; border-radius: 12px;
+    padding: 16px; margin: 10px 0;
+  }
+  .ohm-question .qtext { font-size: 16px; margin-bottom: 8px; color: #e2e8f0; }
+  .ohm-question .formula { background: #1e293b; padding: 8px 14px; border-radius: 8px; font-family: monospace; font-size: 18px; color: #fbbf24; display: inline-block; margin: 4px 0; }
+  .ohm-choices { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .ohm-choice {
+    flex: 1; min-width: 90px; padding: 10px; background: #1e293b; border: 2px solid #475569;
+    border-radius: 10px; cursor: pointer; text-align: center; transition: all 0.2s; font-family: inherit; color: #fff;
+  }
+  .ohm-choice:hover { border-color: #93c5fd; background: #334155; }
+  .ohm-choice.correct { border-color: #10b981; background: rgba(16,185,129,0.2); }
+  .ohm-choice.wrong { border-color: #ef4444; background: rgba(239,68,68,0.2); animation: shake 0.4s; }
+  .ohm-choice:disabled { cursor: default; }
+  /* ===== Feedback toast ===== */
+  #toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(120%);
+    background: #1e293b; color: #fff; padding: 14px 28px; border-radius: 50px;
+    border: 2px solid #fbbf24; z-index: 100; transition: transform 0.4s ease;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-weight: bold; font-size: 16px;
+    max-width: 90%; text-align: center;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.ok { border-color: #10b981; }
+  #toast.err { border-color: #ef4444; }
+  /* ===== Hint / Score ===== */
+  .hint-box { background: rgba(147,197,253,0.1); border-right: 4px solid #93c5fd; padding: 10px 14px; border-radius: 8px; margin: 12px 0; font-size: 14px; color: #cbd5e1; line-height: 1.7; }
+  .score-display { position: fixed; top: 12px; right: 16px; z-index: 20; background: rgba(0,0,0,0.5); padding: 8px 16px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.1); display: none; }
+  .score-display.show { display: block; }
+  .score-display .icon { color: #fbbf24; }
+  /* ===== End Screen ===== */
+  .end-stats { display: flex; justify-content: center; gap: 20px; margin: 20px 0; flex-wrap: wrap; }
+  .stat-box { background: rgba(251,191,36,0.1); border: 1px solid #fbbf24; border-radius: 12px; padding: 14px 24px; text-align: center; }
+  .stat-box .num { font-size: 32px; color: #fbbf24; font-weight: bold; }
+  .stat-box .lbl { font-size: 13px; color: #cbd5e1; margin-top: 4px; }
+  .celebrate { font-size: 80px; text-align: center; margin-bottom: 10px; animation: bounce 1s infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-12px);} }
+  @media (max-width: 520px) {
+    .cell { width: 48px; height: 48px; }
+    .card { padding: 18px; }
+    .battery-choice { min-width: 64px; }
+  }
+</style>
+</head>
+<body>
+<!-- Sky and city background -->
+<div id="sky">
+  <div class="stars" id="stars"></div>
+  <div class="moon"></div>
+  <div id="city"></div>
+</div>
+
+<!-- Progress -->
+<div id="progress">
+  <div class="pdot current" data-l="0"></div>
+  <div class="pdot" data-l="1"></div>
+  <div class="pdot" data-l="2"></div>
+  <div class="pdot" data-l="3"></div>
+  <div class="pdot" data-l="4"></div>
+  <div class="pdot" data-l="5"></div>
+</div>
+<div class="score-display" id="scoreDisplay"><span class="icon">★</span> <span id="scoreNum">0</span></div>
+
+<!-- ===== Start Screen ===== -->
+<div class="screen active" id="screen-start">
+  <div class="card">
+    <div style="font-size:70px;text-align:center;margin-bottom:10px;">🏙️⚡💡</div>
+    <h1 class="title">إنقاذ المدينة من الظلام</h1>
+    <p class="subtitle">
+      انقطعت الكهرباء عن المدينة بأكملها، والمدينة بحاجة إليك!<br>
+      ستحتاج إلى توصيل الأسلاك، اختيار البطارية المناسبة،<br>
+      اكتشاف الدوائر المفتوحة والمغلقة، تشغيل المصابيح،<br>
+      وحل تحديات المقاومة والجهد والتيار وفق قانون أوم.
+    </p>
+    <div class="hint-box">
+      <b>🎯 هدف اللعبة:</b> إكمال 5 مراحل تعليمية متدرجة لإعادة الكهرباء إلى المدينة.<br>
+      <b>📚 ما ستتعلمه:</b> أساسيات الدارات الكهربائية، قانون أوم (V = I × R)،<br>
+      الفرق بين الدائرة المفتوحة والمغلقة، والدوائر على التوالي والتوازي.
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <button class="btn" onclick="startGame()">ابدأ المهمة ⚡</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Level 1: Wire Connection ===== -->
+<div class="screen" id="screen-1">
+  <div class="card">
+    <h2 class="level-title">المرحلة 1: توصيل الأسلاك 🔌</h2>
+    <p class="subtitle">
+      الأسلاك المقطوعة تحتاج إلى إصلاح! اضغط على كل قطعة لتدويرها،<br>
+      وصِل البطارية بالمصباح عبر شبكة الأسلاك.
+    </p>
+    <div id="wireGrid"></div>
+    <div class="hint-box">
+      💡 اضغط على أي قطعة سلك لتدويرها 90°. حاول الوصول بالتيار من البطارية إلى المصباح.
+    </div>
+    <div style="text-align:center;">
+      <button class="btn ghost" onclick="resetLevel1()">إعادة التعيين</button>
+      <button class="btn success" id="l1next" style="display:none;" onclick="nextLevel(1)">التالي ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Level 2: Battery ===== -->
+<div class="screen" id="screen-2">
+  <div class="card">
+    <h2 class="level-title">المرحلة 2: اختيار البطارية 🔋</h2>
+    <p class="subtitle">
+      المصباح يحتاج إلى جهد محدد ليعمل. اختر البطارية المناسبة من البطاريات المتاحة.
+    </p>
+    <div style="text-align:center;margin:10px 0;">
+      <span class="volt-need">المصباح يحتاج: <b id="needVolt">6V</b></span>
+    </div>
+    <div style="text-align:center;">
+      <div id="targetBulb">💡</div>
+    </div>
+    <div id="batteryStage"></div>
+    <div class="hint-box">
+      💡 إذا كان الجهد منخفضاً جداً، لن يضيء المصباح. وإذا كان مرتفعاً جداً قد يحترق!<br>
+      اختر البطارية التي تطابق جهد المصباح تماماً.
+    </div>
+    <div style="text-align:center;">
+      <button class="btn success" id="l2next" style="display:none;" onclick="nextLevel(2)">التالي ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Level 3: Open/Closed ===== -->
+<div class="screen" id="screen-3">
+  <div class="card">
+    <h2 class="level-title">المرحلة 3: الدوائر المفتوحة والمغلقة 🔍</h2>
+    <p class="subtitle">
+      حدّد لكل دائرة: هل هي <b style="color:#10b981">مغلقة</b> (تيار يمر) أم <b style="color:#ef4444">مفتوحة</b> (لا يمر تيار)؟
+    </p>
+    <div class="circuit-row" id="circuitsRow"></div>
+    <div class="hint-box">
+      💡 الدائرة المغلقة: مسار متصل من البطارية عودة إليها. المفتوحة: يوجد قطع أو مفتاح مفتوح.
+    </div>
+    <div style="text-align:center;">
+      <button class="btn success" id="l3next" style="display:none;" onclick="nextLevel(3)">التالي ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Level 4: Parallel Bulbs ===== -->
+<div class="screen" id="screen-4">
+  <div class="card">
+    <h2 class="level-title">المرحلة 4: تشغيل المصابيح 💡💡💡</h2>
+    <p class="subtitle">
+      صِل المصابيح الثلاثة على التوازي مع البطارية. اضغط على كل مصباح لتوصيله.<br>
+      في الدائرة المتوازية، يجب أن يضيء كل مصباح بشكل مستقل.
+    </p>
+    <div style="text-align:center;margin:10px 0;">
+      <svg id="parallelSVG" width="100%" height="240" viewBox="0 0 500 240" style="max-width:520px;">
+        <!-- Battery -->
+        <rect x="40" y="170" width="60" height="40" fill="#fbbf24" stroke="#92400e" stroke-width="2" rx="4"/>
+        <text x="70" y="195" text-anchor="middle" fill="#000" font-weight="bold" font-size="14">12V</text>
+        <line x1="70" y1="170" x2="70" y2="60" stroke="#64748b" stroke-width="4"/>
+        <line x1="70" y1="210" x2="70" y2="220" stroke="#64748b" stroke-width="4"/>
+        <line x1="70" y1="220" x2="450" y2="220" stroke="#64748b" stroke-width="4"/>
+        <line x1="70" y1="60" x2="450" y2="60" stroke="#64748b" stroke-width="4"/>
+        <!-- bulb positions -->
+        <g id="bulbG1" onclick="connectBulb(1)">
+          <line x1="150" y1="60" x2="150" y2="100" stroke="#64748b" stroke-width="4"/>
+          <line x1="150" y1="140" x2="150" y2="220" stroke="#64748b" stroke-width="4"/>
+          <circle id="bc1" cx="150" cy="120" r="20" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+          <text x="150" y="126" text-anchor="middle" font-size="18">💡</text>
+        </g>
+        <g id="bulbG2" onclick="connectBulb(2)">
+          <line x1="300" y1="60" x2="300" y2="100" stroke="#64748b" stroke-width="4"/>
+          <line x1="300" y1="140" x2="300" y2="220" stroke="#64748b" stroke-width="4"/>
+          <circle id="bc2" cx="300" cy="120" r="20" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+          <text x="300" y="126" text-anchor="middle" font-size="18">💡</text>
+        </g>
+        <g id="bulbG3" onclick="connectBulb(3)">
+          <line x1="430" y1="60" x2="430" y2="100" stroke="#64748b" stroke-width="4"/>
+          <line x1="430" y1="140" x2="430" y2="220" stroke="#64748b" stroke-width="4"/>
+          <circle id="bc3" cx="430" cy="120" r="20" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+          <text x="430" y="126" text-anchor="middle" font-size="18">💡</text>
+        </g>
+      </svg>
+      <div style="margin-top:8px;color:#cbd5e1;font-size:14px;">المصابيح الموصولة: <span id="bulbsConnected">0</span> / 3</div>
+    </div>
+    <div class="hint-box">
+      💡 في الدائرة المتوازية كل مصباح له مساره الخاص، فإذا أطفأ أحدها يبقى الآخر مضيئاً.
+    </div>
+    <div style="text-align:center;">
+      <button class="btn success" id="l4next" style="display:none;" onclick="nextLevel(4)">التالي ←</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Level 5: Ohm's Law ===== -->
+<div class="screen" id="screen-5">
+  <div class="card">
+    <h2 class="level-title">المرحلة 5: تحديات قانون أوم 🧮</h2>
+    <p class="subtitle">
+      استخدم قانون أوم: <span class="formula">V = I × R</span><br>
+      حيث V = الجهد (فولت)، I = التيار (أمبير)، R = المقاومة (أوم).
+    </p>
+    <div id="ohmContainer"></div>
+    <div style="text-align:center;margin-top:14px;">
+      <span style="color:#cbd5e1;">إجابات صحيحة: <b id="ohmScore">0</b> / <span id="ohmTotal">4</span></span>
+    </div>
+    <div style="text-align:center;margin-top:10px;">
+      <button class="btn success" id="l5next" style="display:none;" onclick="finishGame()">إنهاء المهمة 🎉</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== End Screen ===== -->
+<div class="screen" id="screen-end">
+  <div class="card">
+    <div class="celebrate">🎉🏙️✨</div>
+    <h1 class="title">عاد النور إلى المدينة!</h1>
+    <p class="subtitle">
+      أحسنت! لقد نجحت في إعادة الكهرباء إلى المدينة بأكملها.<br>
+      تعلمت كيف توصل الأسلاك، تختار البطارية، تميز الدوائر،<br>
+      تشغّل المصابيح، وتطبّق قانون أوم.
+    </p>
+    <div class="end-stats">
+      <div class="stat-box"><div class="num" id="finalScore">0</div><div class="lbl">النقاط</div></div>
+      <div class="stat-box"><div class="num">5</div><div class="lbl">مراحل مكتملة</div></div>
+      <div class="stat-box"><div class="num" id="finalStars">★★★</div><div class="lbl">تقييمك</div></div>
+    </div>
+    <div class="hint-box">
+      📚 تذكر دائماً: <b>V = I × R</b> — الجهد يساوي حاصل ضرب التيار في المقاومة.
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <button class="btn" onclick="restartGame()">العب مرة أخرى 🔁</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============ State ============ */
+let currentLevel = 0;
+let score = 0;
+
+/* ============ Init: stars, city ============ */
+(function initStars(){
+  const sky = document.getElementById('stars');
+  for (let i=0;i<60;i++){
+    const s = document.createElement('div');
+    s.className = 'star';
+    const sz = Math.random()*2+1;
+    s.style.width = s.style.height = sz+'px';
+    s.style.left = Math.random()*100+'%';
+    s.style.top = Math.random()*70+'%';
+    s.style.animationDelay = (Math.random()*3)+'s';
+    sky.appendChild(s);
+  }
+})();
+(function initCity(){
+  const city = document.getElementById('city');
+  const count = Math.max(12, Math.floor(window.innerWidth/55));
+  for (let i=0;i<count;i++){
+    const b = document.createElement('div');
+    b.className = 'building';
+    const h = 60 + Math.random()*180;
+    b.style.height = h+'px';
+    // windows
+    const rows = Math.floor(h/22);
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<2;c++){
+        const w = document.createElement('div');
+        w.className = 'window';
+        w.style.top = (8+r*20)+'px';
+        w.style.left = (c===0?8:30)+'px';
+        w.style.width = '16px'; w.style.height = '12px';
+        b.appendChild(w);
+      }
+    }
+    city.appendChild(b);
+  }
+})();
+function lightCity(ratio){
+  const buildings = document.querySelectorAll('.building');
+  buildings.forEach((b, i) => {
+    const windows = b.querySelectorAll('.window');
+    windows.forEach((w, wi) => {
+      // deterministic-ish but staggered
+      const seed = (i*7 + wi*3) / 100;
+      if (seed < ratio) w.classList.add('on');
+    });
+  });
+  if (ratio > 0.7) document.getElementById('sky').classList.add('lit');
+}
+
+/* ============ Toast ============ */
+function toast(msg, type='ok'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.className = '', 2200);
+}
+
+/* ============ Navigation ============ */
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function updateProgress(lvl){
+  document.querySelectorAll('.pdot').forEach(d=>{
+    const l = parseInt(d.dataset.l);
+    d.classList.remove('current','done');
+    if (l < lvl) d.classList.add('done');
+    else if (l === lvl) d.classList.add('current');
+  });
+}
+function startGame(){
+  currentLevel = 1;
+  score = 0;
+  document.getElementById('progress').classList.add('show');
+  document.getElementById('scoreDisplay').classList.add('show');
+  document.getElementById('scoreNum').textContent = score;
+  updateProgress(1);
+  showScreen('screen-1');
+  initLevel1();
+}
+function nextLevel(lvl){
+  score += 100;
+  document.getElementById('scoreNum').textContent = score;
+  lightCity(lvl/5);
+  currentLevel = lvl+1;
+  updateProgress(currentLevel);
+  showScreen('screen-'+currentLevel);
+  if (currentLevel===2) initLevel2();
+  if (currentLevel===3) initLevel3();
+  if (currentLevel===4) initLevel4();
+  if (currentLevel===5) initLevel5();
+}
+function finishGame(){
+  score += 100;
+  document.getElementById('scoreNum').textContent = score;
+  lightCity(1);
+  updateProgress(5);
+  document.getElementById('finalScore').textContent = score;
+  const stars = score >= 600 ? '★★★' : score >= 400 ? '★★' : '★';
+  document.getElementById('finalStars').textContent = stars;
+  showScreen('screen-end');
+}
+function restartGame(){
+  document.getElementById('progress').classList.remove('show');
+  document.getElementById('scoreDisplay').classList.remove('show');
+  document.querySelectorAll('.window').forEach(w=>w.classList.remove('on'));
+  document.getElementById('sky').classList.remove('lit');
+  // reset all next buttons
+  for (let i=1;i<=5;i++){
+    const b = document.getElementById('l'+i+'next');
+    if (b) b.style.display = 'none';
+  }
+  showScreen('screen-start');
+}
+
+/* ============ LEVEL 1: Wire Grid ============ */
+/*
+  Grid 5x3. Cell types: straight, corner, T, cross, battery(left), bulb(right).
+  Click rotates. We track orientation 0-3 (90° steps).
+  Goal: a connected path from battery to bulb.
+  Simplified: each piece has connections in 4 directions [top,right,bottom,left] as booleans.
+  Rotation cycles the boolean set.
+  Path-finding: BFS from battery cell's right edge to bulb cell's left edge.
+*/
+const DIRS = {top:0, right:1, bottom:2, left:3};
+// piece definitions: array of [top,right,bottom,left] base (rotation 0)
+const PIECES = {
+  straight: [1,0,1,0],
+  corner:   [1,1,0,0],
+  tee:      [1,1,1,0],
+  cross:    [1,1,1,1],
+  battery:  [0,1,0,0],
+  bulb:     [0,0,0,1],
+  empty:    [0,0,0,0]
+};
+function rotateConns(conns, times){
+  let c = conns.slice();
+  for (let i=0;i<times;i++){ c = [c[3],c[0],c[1],c[2]]; } // rotate CW
+  return c;
+}
+let grid = [];
+function initLevel1(){
+  const gridEl = document.getElementById('wireGrid');
+  gridEl.innerHTML = '';
+  // 5 columns x 3 rows. Battery at (0,1), bulb at (4,1)
+  const layout = [
+    ['empty','corner','straight','corner','empty'],
+    ['battery','straight','straight','straight','bulb'],
+    ['empty','corner','straight','corner','empty'],
+  ];
+  // initial rotations (random but solvable). We'll set them scrambled.
+  const scramble = [
+    [0,1,0,2,0],
+    [0,3,1,2,0],
+    [0,2,3,1,0],
+  ];
+  grid = [];
+  for (let r=0;r<3;r++){
+    const row = [];
+    for (let c=0;c<5;c++){
+      const type = layout[r][c];
+      const rot = (type==='battery'||type==='bulb'||type==='empty') ? 0 : scramble[r][c];
+      row.push({type, rot});
+    }
+    grid.push(row);
+  }
+  renderGrid();
+  checkLevel1();
+}
+function renderGrid(){
+  const gridEl = document.getElementById('wireGrid');
+  gridEl.innerHTML = '';
+  gridEl.style.gridTemplateColumns = 'repeat(5, 64px)';
+  for (let r=0;r<3;r++){
+    for (let c=0;c<5;c++){
+      const cell = grid[r][c];
+      const div = document.createElement('div');
+      div.className = 'cell';
+      if (cell.type==='battery' || cell.type==='bulb' || cell.type==='empty') div.classList.add('fixed');
+      div.dataset.r = r; div.dataset.c = c;
+      div.innerHTML = cellSVG(cell);
+      if (cell.type!=='battery' && cell.type!=='bulb' && cell.type!=='empty'){
+        div.onclick = ()=>{ cell.rot = (cell.rot+1)%4; renderGrid(); checkLevel1(); };
+      }
+      gridEl.appendChild(div);
+    }
+  }
+}
+function cellSVG(cell){
+  const conns = rotateConns(PIECES[cell.type], cell.rot);
+  // draw an SVG with line segments based on conns from center to each edge
+  const cx=32, cy=32, len=32;
+  let paths = '';
+  if (conns[0]) paths += `<line class="wire-path" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy-len}"/>`;
+  if (conns[1]) paths += `<line class="wire-path" x1="${cx}" y1="${cy}" x2="${cx+len}" y2="${cy}"/>`;
+  if (conns[2]) paths += `<line class="wire-path" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy+len}"/>`;
+  if (conns[3]) paths += `<line class="wire-path" x1="${cx}" y1="${cy}" x2="${cx-len}" y2="${cy}"/>`;
+  // center node
+  let center = '';
+  if (cell.type==='battery'){
+    center = `<rect x="22" y="20" width="20" height="24" fill="#fbbf24" stroke="#92400e" stroke-width="2" rx="3"/>
+              <text x="32" y="36" text-anchor="middle" font-size="11" font-weight="bold" fill="#000">V</text>
+              <line class="wire-path" x1="32" y1="32" x2="64" y2="32"/>`;
+  } else if (cell.type==='bulb'){
+    center = `<circle cx="32" cy="32" r="14" fill="#1e293b" stroke="${cell.lit?'#fbbf24':'#475569'}" stroke-width="2"/>
+              <text x="32" y="38" text-anchor="middle" font-size="18">💡</text>
+              <line class="wire-path" x1="32" y1="32" x2="0" y2="32"/>`;
+  } else if (cell.type!=='empty'){
+    center = `<circle cx="32" cy="32" r="4" fill="#64748b"/>`;
+  }
+  return `<svg viewBox="0 0 64 64">${paths}${center}</svg>`;
+}
+function checkLevel1(){
+  // BFS: find path from battery cell (right edge open) to bulb cell (left edge open)
+  // Check connectivity using adjacency based on open connections on shared edges.
+  const rows=3, cols=5;
+  const bat = {r:1,c:0};
+  const bulb = {r:1,c:4};
+  // visited
+  const visited = Array.from({length:rows},()=>Array(cols).fill(false));
+  const queue = [bat];
+  visited[bat.r][bat.c] = true;
+  let reached = false;
+  // We'll trace from battery's right connection
+  while(queue.length){
+    const {r,c} = queue.shift();
+    if (r===bulb.r && c===bulb.c){ reached = true; break; }
+    const conns = rotateConns(PIECES[grid[r][c].type], grid[r][c].rot);
+    // top neighbor
+    if (conns[0] && r>0){
+      const n = grid[r-1][c];
+      const nc = rotateConns(PIECES[n.type], n.rot);
+      if (nc[2] && !visited[r-1][c]){ visited[r-1][c]=true; queue.push({r:r-1,c}); }
+    }
+    if (conns[1] && c<cols-1){
+      const n = grid[r][c+1];
+      const nc = rotateConns(PIECES[n.type], n.rot);
+      if (nc[3] && !visited[r][c+1]){ visited[r][c+1]=true; queue.push({r,c:c+1}); }
+    }
+    if (conns[2] && r<rows-1){
+      const n = grid[r+1][c];
+      const nc = rotateConns(PIECES[n.type], n.rot);
+      if (nc[0] && !visited[r+1][c]){ visited[r+1][c]=true; queue.push({r:r+1,c}); }
+    }
+    if (conns[3] && c>0){
+      const n = grid[r][c-1];
+      const nc = rotateConns(PIECES[n.type], n.rot);
+      if (nc[1] && !visited[r][c-1]){ visited[r][c-1]=true; queue.push({r,c:c-1}); }
+    }
+  }
+  // mark connected cells visually
+  document.querySelectorAll('.cell').forEach(cell=>{
+    cell.classList.remove('connected');
+  });
+  // re-run to find connected component from battery
+  const vis2 = Array.from({length:rows},()=>Array(cols).fill(false));
+  const q2=[bat]; vis2[bat.r][bat.c]=true;
+  const connected=[];
+  while(q2.length){
+    const {r,c}=q2.shift(); connected.push({r,c});
+    const conns = rotateConns(PIECES[grid[r][c].type], grid[r][c].rot);
+    if (conns[0] && r>0){ const n=grid[r-1][c]; const nc=rotateConns(PIECES[n.type],n.rot); if(nc[2]&&!vis2[r-1][c]){vis2[r-1][c]=true;q2.push({r:r-1,c});} }
+    if (conns[1] && c<cols-1){ const n=grid[r][c+1]; const nc=rotateConns(PIECES[n.type],n.rot); if(nc[3]&&!vis2[r][c+1]){vis2[r][c+1]=true;q2.push({r,c:c+1});} }
+    if (conns[2] && r<rows-1){ const n=grid[r+1][c]; const nc=rotateConns(PIECES[n.type],n.rot); if(nc[0]&&!vis2[r+1][c]){vis2[r+1][c]=true;q2.push({r:r+1,c});} }
+    if (conns[3] && c>0){ const n=grid[r][c-1]; const nc=rotateConns(PIECES[n.type],n.rot); if(nc[1]&&!vis2[r][c-1]){vis2[r][c-1]=true;q2.push({r,c:c-1});} }
+  }
+  const cells = document.querySelectorAll('#wireGrid .cell');
+  connected.forEach(({r,c})=>{
+    cells[r*5+c].classList.add('connected');
+  });
+  // light bulb if reached
+  grid[1][4].lit = reached;
+  if (reached){
+    toast('رائع! المصباح يضيء الآن ✨','ok');
+    document.getElementById('l1next').style.display = 'inline-block';
+  } else {
+    document.getElementById('l1next').style.display = 'none';
+  }
+}
+function resetLevel1(){ initLevel1(); }
+
+/* ============ LEVEL 2: Battery ============ */
+let needVolt = 6;
+let batteries = [];
+function initLevel2(){
+  needVolt = 6;
+  document.getElementById('needVolt').textContent = needVolt+'V';
+  const stage = document.getElementById('batteryStage');
+  stage.innerHTML = '';
+  const bulb = document.getElementById('targetBulb');
+  bulb.classList.remove('lit');
+  bulb.textContent = '💡';
+  batteries = [1.5, 3, 6, 9, 12];
+  batteries.forEach(v=>{
+    const b = document.createElement('div');
+    b.className = 'battery-choice';
+    b.innerHTML = `<div class="btop"></div><div class="bbody"><div class="bvolt">${v}V</div><div class="blabel">بطارية</div></div>`;
+    b.onclick = ()=>pickBattery(v, b);
+    stage.appendChild(b);
+  });
+  document.getElementById('l2next').style.display = 'none';
+}
+function pickBattery(v, el){
+  const bulb = document.getElementById('targetBulb');
+  document.querySelectorAll('.battery-choice').forEach(b=>b.style.outline='');
+  if (v === needVolt){
+    bulb.classList.add('lit');
+    toast('ممتاز! المصباح يضيء بالجهد الصحيح ⚡','ok');
+    el.style.outline = '4px solid #10b981';
+    document.getElementById('l2next').style.display = 'inline-block';
+  } else if (v < needVolt){
+    bulb.classList.remove('lit');
+    toast('الجهد منخفض جداً! المصباح لا يضيء ⚠️','err');
+    el.style.outline = '4px solid #ef4444';
+  } else {
+    bulb.classList.remove('lit');
+    toast('الجهد مرتفع جداً! قد يحترق المصباح 🔥','err');
+    el.style.outline = '4px solid #ef4444';
+  }
+}
+
+/* ============ LEVEL 3: Open/Closed circuits ============ */
+let circuitDone = 0;
+function initLevel3(){
+  circuitDone = 0;
+  const row = document.getElementById('circuitsRow');
+  row.innerHTML = '';
+  document.getElementById('l3next').style.display = 'none';
+  // 4 circuits: 2 closed, 2 open (with switch or break)
+  const circuits = [
+    { id:1, closed:true,  svg:circuitSVG('closed-switch'), label:'دائرة 1' },
+    { id:2, closed:false, svg:circuitSVG('open-switch'),   label:'دائرة 2' },
+    { id:3, closed:false, svg:circuitSVG('broken-wire'),   label:'دائرة 3' },
+    { id:4, closed:true,  svg:circuitSVG('closed-complete'),label:'دائرة 4' },
+  ];
+  circuits.forEach(c=>{
+    const card = document.createElement('div');
+    card.className = 'circuit-card';
+    card.innerHTML = `<div>${c.svg}</div><div class="ctitle">${c.label}</div>
+      <div class="cbtns">
+        <button class="mini-btn open-btn" data-pick="open">مفتوحة</button>
+        <button class="mini-btn closed-btn" data-pick="closed">مغلقة</button>
+      </div>`;
+    card.querySelectorAll('.mini-btn').forEach(btn=>{
+      btn.onclick = ()=>pickCircuit(c, btn, card);
+    });
+    row.appendChild(card);
+  });
+}
+function circuitSVG(type){
+  // simple circuit drawing: battery, wires, bulb, switch/break
+  const base = (extra) => `
+    <svg viewBox="0 0 220 110">
+      <rect x="20" y="70" width="40" height="24" fill="#fbbf24" stroke="#92400e" stroke-width="2" rx="3"/>
+      <text x="40" y="86" text-anchor="middle" font-size="10" font-weight="bold" fill="#000">BAT</text>
+      <line x1="40" y1="70" x2="40" y2="30" stroke="#64748b" stroke-width="3"/>
+      <line x1="40" y1="94" x2="40" y2="100" stroke="#64748b" stroke-width="3"/>
+      <line x1="40" y1="100" x2="180" y2="100" stroke="#64748b" stroke-width="3"/>
+      <line x1="40" y1="30" x2="180" y2="30" stroke="#64748b" stroke-width="3"/>
+      ${extra}
+      <circle cx="180" cy="65" r="14" fill="#1e293b" stroke="#fbbf24" stroke-width="2"/>
+      <text x="180" y="70" text-anchor="middle" font-size="14">💡</text>
+      <line x1="180" y1="30" x2="180" y2="51" stroke="#64748b" stroke-width="3"/>
+      <line x1="180" y1="79" x2="180" y2="100" stroke="#64748b" stroke-width="3"/>
+    </svg>`;
+  if (type==='closed-switch'){
+    return base(`<line x1="100" y1="100" x2="100" y2="30" stroke="#64748b" stroke-width="3"/>`);
+  } else if (type==='open-switch'){
+    return base(`<line x1="100" y1="100" x2="100" y2="55" stroke="#64748b" stroke-width="3"/>
+                <line x1="100" y1="55" x2="115" y2="40" stroke="#64748b" stroke-width="3"/>
+                <circle cx="100" cy="55" r="3" fill="#64748b"/>
+                <circle cx="100" cy="30" r="3" fill="#64748b"/>`);
+  } else if (type==='broken-wire'){
+    return base(`<line x1="100" y1="100" x2="100" y2="65" stroke="#64748b" stroke-width="3"/>
+                <line x1="100" y1="55" x2="100" y2="30" stroke="#64748b" stroke-width="3"/>
+                <text x="115" y="62" font-size="14" fill="#ef4444">✗</text>`);
+  } else { // closed-complete
+    return base(`<line x1="100" y1="100" x2="100" y2="30" stroke="#64748b" stroke-width="3"/>`);
+  }
+}
+function pickCircuit(c, btn, card){
+  if (card.dataset.done) return;
+  const pick = btn.dataset.pick;
+  const correct = (pick==='closed') === c.closed;
+  if (correct){
+    btn.classList.add('correct');
+    card.querySelectorAll('.mini-btn').forEach(b=>b.disabled=true);
+    card.dataset.done = '1';
+    circuitDone++;
+    toast('إجابة صحيحة! ✅','ok');
+    if (circuitDone===4){
+      document.getElementById('l3next').style.display = 'inline-block';
+    }
+  } else {
+    btn.classList.add('wrong');
+    setTimeout(()=>btn.classList.remove('wrong'), 500);
+    toast('حاول مرة أخرى ❌','err');
+  }
+}
+
+/* ============ LEVEL 4: Parallel bulbs ============ */
+let bulbsConnected = 0;
+let bulbStates = [false,false,false];
+function initLevel4(){
+  bulbsConnected = 0;
+  bulbStates = [false,false,false];
+  document.getElementById('bulbsConnected').textContent = '0';
+  document.getElementById('l4next').style.display = 'none';
+  for (let i=1;i<=3;i++){
+    const c = document.getElementById('bc'+i);
+    c.setAttribute('fill','#1e293b');
+    c.setAttribute('stroke','#475569');
+  }
+}
+function connectBulb(i){
+  if (bulbStates[i-1]) return;
+  bulbStates[i-1] = true;
+  bulbsConnected++;
+  document.getElementById('bulbsConnected').textContent = bulbsConnected;
+  const c = document.getElementById('bc'+i);
+  c.setAttribute('fill','#fbbf24');
+  c.setAttribute('stroke','#f59e0b');
+  c.style.filter = 'drop-shadow(0 0 8px #fbbf24)';
+  // animate light
+  toast('مصباح '+i+' مضيء الآن 💡','ok');
+  if (bulbsConnected===3){
+    document.getElementById('l4next').style.display = 'inline-block';
+  }
+}
+
+/* ============ LEVEL 5: Ohm's Law ============ */
+let ohmCorrect = 0;
+const ohmQuestions = [
+  { q:'إذا كان الجهد V=12V والمقاومة R=4Ω، ما قيمة التيار I؟', formula:'I = V / R = 12 / 4', answer:3, unit:'A', choices:[2,3,4,6] },
+  { q:'إذا كان التيار I=2A والمقاومة R=5Ω، ما قيمة الجهد V؟', formula:'V = I × R = 2 × 5', answer:10, unit:'V', choices:[7,10,15,20] },
+  { q:'إذا كان الجهد V=9V والتيار I=3A، ما قيمة المقاومة R؟', formula:'R = V / I = 9 / 3', answer:3, unit:'Ω', choices:[3,6,12,27] },
+  { q:'مصباح مقاومته 6Ω يمر فيه تيار 2A، ما الجهد اللازم؟', formula:'V = I × R = 2 × 6', answer:12, unit:'V', choices:[6,8,12,24] },
+];
+function initLevel5(){
+  ohmCorrect = 0;
+  document.getElementById('ohmScore').textContent = '0';
+  document.getElementById('ohmTotal').textContent = ohmQuestions.length;
+  document.getElementById('l5next').style.display = 'none';
+  const cont = document.getElementById('ohmContainer');
+  cont.innerHTML = '';
+  ohmQuestions.forEach((q, qi)=>{
+    const div = document.createElement('div');
+    div.className = 'ohm-question';
+    div.innerHTML = `<div class="qtext">${qi+1}. ${q.q}</div>
+      <div class="formula">${q.formula} = ?</div>
+      <div class="ohm-choices" data-q="${qi}">
+        ${q.choices.map(ch=>`<button class="ohm-choice" data-val="${ch}">${ch} ${q.unit}</button>`).join('')}
+      </div>`;
+    div.querySelectorAll('.ohm-choice').forEach(btn=>{
+      btn.onclick = ()=>pickOhm(qi, q, btn, div);
+    });
+    cont.appendChild(div);
+  });
+}
+function pickOhm(qi, q, btn, div){
+  if (div.dataset.done) return;
+  const val = parseFloat(btn.dataset.val);
+  if (val === q.answer){
+    btn.classList.add('correct');
+    div.querySelectorAll('.ohm-choice').forEach(b=>b.disabled=true);
+    div.dataset.done = '1';
+    ohmCorrect++;
+    document.getElementById('ohmScore').textContent = ohmCorrect;
+    toast('إجابة صحيحة! ✅','ok');
+    if (ohmCorrect===ohmQuestions.length){
+      document.getElementById('l5next').style.display = 'inline-block';
+    }
+  } else {
+    btn.classList.add('wrong');
+    setTimeout(()=>btn.classList.remove('wrong'), 500);
+    toast('خطأ. تذكر: V = I × R','err');
+  }
+}
+
+/* ============ Keyboard hint for restart ============ */
+document.addEventListener('keydown', e=>{
+  if (e.key==='Escape' && currentLevel>0) restartGame();
+});
+</script>
+</body>
+</html>
